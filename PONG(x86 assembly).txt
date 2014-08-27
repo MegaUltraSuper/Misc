@@ -1,0 +1,599 @@
+
+; Program: p13 - Pong
+; Author: Alex Carnahan
+; Date: 12/07/2012
+; Runs in real mode. Made with Irvine's make16 batch file.
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;INSTRUCTIONS:														;
+;	q & a are up and down for player 1 paddle (left)								;							
+;	o & l are up and down for player 2 paddle (right)								;
+;	w & s move paddle 1 faster											;
+;	i & k mov paddle 2 faster							
+;	1,2,3,4 change the speed mode from slowest to fastest (3 is the default)					;
+;	0 will exit the game 												;
+;	first player to score 5 points wins										;
+;	game can then be restarted											;
+;															;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+.model small
+
+
+.data
+
+P1 BYTE 0		;the bottom part of the paddle
+P2 BYTE 0
+Bvp BYTE 0		;vertical position
+Bvd BYTE 0		;vertical direction
+Check BYTE 0		;used to see if it is the ball's turn to move 
+Bhp BYTE 0		;horizontal position
+Bhd BYTE 0		;horizontal direction
+P1score BYTE 00h
+P2Score BYTE 00h
+Speed BYTE 0
+P1Wins BYTE "Player 1 Wins"
+P2Wins BYTE "Player 2 Wins"
+PlayAgain BYTE "Play Again? (y/n)"
+
+.stack 100h	
+
+.code
+main proc
+
+Restart:
+	mov P1Score, 00h
+	mov p2Score, 00h
+	mov Bhd, 0
+		
+Start:	
+	call ClearScreen	
+	mov dh, 15	;starting position of left paddle
+	mov dl, 5
+	call SetCursor
+	mov al, 0DBh	;solid block text
+	mov bl, 02h	;Black behind green
+	mov cx, 6
+
+PrintPaddle1:
+	call writeText
+	dec dh	
+	call SetCursor
+	loop PrintPaddle1	;paddle will be 5 from the side and 6 spaces long
+	
+	mov cx, 6
+	mov dl, 35	;opposite side paddle
+	mov dh, 15
+	call SetCursor
+
+PrintPaddle2:
+	call writeText
+	dec dh	
+	call SetCursor
+	loop PrintPaddle2
+	
+
+PrintBall:
+	mov al, 0F9h	;ball shape
+	mov bl, 04	;black behind red
+	mov dl, 19	;middle of screen
+	mov dh, 12	;middle row
+	call SetCursor
+	call WriteText
+	jmp InitialConditions
+
+Paddle1Up:
+	mov dh, P1		
+	cmp P1, 6
+	je GameLoop		;jump if already at top of screen
+	mov dl, 5
+	call SetCursor		;moves the cursor to the the bottom piece of the paddle
+	mov al, 00h	
+	mov bl, 00h
+	call writeText		;erases that piece
+	dec P1			;new position of paddle
+	mov dh, [P1]	
+	sub dh, 5		;place where new piece needs to be added
+	mov al, 0DBh	
+	mov bl, 02h
+	call SetCursor
+	call writeText		
+	jmp GameLoop		;jumps back for more instructions
+
+Paddle1Down:
+	cmp P1, 25
+	je GameLoop		;in case paddle is already at the bottom
+	mov dl, 5
+	mov dh, [P1]
+	sub dh, 5
+	call SetCursor
+	mov al, 00h	
+	mov bl, 00h
+	call writeText
+	inc P1	
+	mov dh, [P1]
+	mov al, 0DBh	
+	mov bl, 02h
+	call SetCursor
+	call writeText	
+	jmp GameLoop	
+
+Paddle1Upfast:			;Next 2 lists are the same as previous 2 lists of instruction but repeats itself one extra time
+	mov cx, 2
+Shift1:
+	mov dh, P1		
+	cmp P1, 6
+	je GameLoop		
+	mov dl, 5
+	call SetCursor		
+	mov al, 00h	
+	mov bl, 00h
+	call writeText		
+	dec P1			
+	mov dh, [P1]	
+	sub dh, 5		
+	mov al, 0DBh	
+	mov bl, 02h
+	call SetCursor
+	call writeText
+	Loop Shift1		
+	jmp GameLoop		
+
+Paddle1Downfast:		;moves two spaces instead of one
+	mov cx, 2
+Shift2:
+	cmp P1, 25
+	je GameLoop		
+	mov dl, 5
+	mov dh, [P1]
+	sub dh, 5
+	call SetCursor
+	mov al, 00h	
+	mov bl, 00h
+	call writeText
+	inc P1	
+	mov dh, [P1]
+	mov al, 0DBh	
+	mov bl, 02h
+	call SetCursor
+	call writeText
+	Loop Shift2	
+	jmp GameLoop	
+
+Paddle2Up:			;pretty much the same as the first paddle
+	mov dh, P2
+	cmp P2, 6
+	je GameLoop
+	mov dl, 35
+	call SetCursor
+	mov al, 00h	
+	mov bl, 00h
+	call writeText
+	dec P2	
+	mov dh, [P2]
+	sub dh, 5
+	mov al, 0DBh	
+	mov bl, 02h
+	call SetCursor
+	call writeText	
+	jmp GameLoop	
+
+Paddle2Down:
+	cmp P2, 25
+	je GameLoop
+	mov dl, 35
+	mov dh, [P2]
+	sub dh, 5
+	call SetCursor
+	mov al, 00h	
+	mov bl, 00h
+	call writeText
+	inc P2	
+	mov dh, [P2]
+	mov al, 0DBh	
+	mov bl, 02h
+	call SetCursor
+	call writeText	
+	jmp GameLoop
+
+Paddle2Upfast:			
+	mov cx, 2
+Shift3:
+	mov dh, P2
+	cmp P2, 6
+	je GameLoop
+	mov dl, 35
+	call SetCursor
+	mov al, 00h	
+	mov bl, 00h
+	call writeText
+	dec P2	
+	mov dh, [P2]
+	sub dh, 5
+	mov al, 0DBh	
+	mov bl, 02h
+	call SetCursor
+	call writeText	
+	Loop Shift3
+	jmp GameLoop	
+
+Paddle2Downfast:
+	mov cx, 2
+Shift4:
+	cmp P2, 25
+	je GameLoop
+	mov dl, 35
+	mov dh, [P2]
+	sub dh, 5
+	call SetCursor
+	mov al, 00h	
+	mov bl, 00h
+	call writeText
+	inc P2	
+	mov dh, [P2]
+	mov al, 0DBh	
+	mov bl, 02h
+	call SetCursor
+	call writeText
+	Loop Shift4	
+	jmp GameLoop
+
+BallMovement:
+	mov dh, [Bvp]
+	mov dl, Bhp
+	call SetCursor		;erase the current ball
+	mov al, 00h
+	mov bl, 00h
+	call WriteText
+	cmp Bvp, 1		;if ball is at the top it needs to change direction
+	je BallDown1
+	cmp Bvp, 24		;at bottom, change directions
+	je BallUp1
+	cmp Bvd, 1
+	je BallUp2
+	jne BallDown2
+
+BallDown1:
+	mov Bvd, 0
+BallDown2:
+	inc Bvp			;move the ball down the screen
+	mov dh, Bvp
+	cmp Bhp, 6		;check if the ball is at the left paddle	
+	je BallDownRight1
+	cmp Bhp, 34		;check for right paddle
+	je BallDownLeft1
+	cmp Bhd, 1
+	je BallDownRight2	;goes right and doesnt require direction change
+	jne BallDownLeft2
+
+BallDownRight1:
+	mov Bhd, 1
+BallDownRight2:
+	inc Bhp
+	mov dl, Bhp
+	jmp BallDownEnd
+BallDownLeft1:
+	mov Bhd, 0
+BallDownLeft2:
+	dec Bhp
+	mov dl, Bhp
+
+BallDownEnd:
+	call SetCursor
+	mov al, 0F9h
+	mov bl, 04h
+	call WriteText 
+	jmp Commands
+
+BallUp1:			;repeat essentialy the down process again but for up
+	mov Bvd, 1
+BallUp2:
+	dec Bvp
+	mov dh, Bvp
+	cmp Bhp, 6			
+	je BallUpRight1
+	cmp Bhp, 34		
+	je BallUpLeft1
+	cmp Bhd, 1
+	je BallUpRight2	
+	jne BallUpLeft1
+
+BallUpRight1:
+	mov Bhd, 1
+BallUpRight2:
+	inc Bhp
+	mov dl, Bhp
+	jmp BallUpEnd
+BallUpLeft1:
+	mov Bhd, 0
+BallUpLeft2:
+	dec Bhp
+	mov dl, Bhp
+
+BallUpEnd:	
+	call SetCursor
+	mov al, 0F9h
+	mov bl, 04h
+	call WriteText
+	jmp Commands
+
+InitialConditions:	;can easily edit to change starting conditions 
+	mov P1, 15	;position (row) of the bottom of each paddle 	
+	mov P2, 15	
+	mov Bvp, 12	
+	mov Bvd, 1	;1=up and 0=down
+	mov Check, 0Fh
+	mov Bhp, 19
+	xor Bhd, 1	;1=right and 0=left should change every round
+	mov dh, 2
+	mov dl, 2	;top left corner
+	call SetCursor
+	mov Speed, 4
+	mov al, p1Score
+	add al, "0"   	;converts to ASCII
+	mov bl, 42h	;color
+	call WriteText	;prints player 1's score in top left
+	mov dl, 39	;top right corner
+	call SetCursor
+	mov al, P2Score
+	add al, "0"
+	mov bl, 24h
+	call WriteText	;writes player 2's score in top right
+
+GameLoop:
+CheckForMiss:	
+	cmp Bhp, 34	;contact with right paddle side
+	je RightPaddleTest
+	cmp Bhp, 6	;left paddle contact
+	jne GameLoop2
+
+LeftPaddleTest:
+	cmp Bvd, 1
+	jne LeftPaddleDown
+LeftPaddleup:
+	mov bl, Bvp
+	mov cl, p1
+	sub cl, 5	;top of paddle
+	cmp bl, cl
+	jl Player2Score	;score if above paddle
+	inc bl		;if ball is moving up, paddle will still hit the ball from one space down
+	cmp bl, p1
+	jg Player2Score	;player 2 scores if ball is more than one space below paddle
+	jmp GameLoop2
+LeftPaddleDown:
+	mov bl, Bvp
+	cmp bl, p1
+	jg Player2Score	;player 2 scores if ball is more than one space below paddle
+	inc bl		;if ball is moving down, paddle will still hit the ball from one space up
+	mov cl, p1
+	sub cl, 5	;top of paddle
+	cmp bl, cl
+	jl Player2Score	;score if above paddle
+	jmp GameLoop2
+
+RightPaddleTest:	;same as Left paddle except player 1 scores
+	cmp Bvd, 1
+	jne RightPaddleDown
+RightPaddleup:
+	mov bl, Bvp
+	mov cl, p2
+	sub cl, 5	
+	cmp bl, cl
+	jl Player1Score	
+	dec bl		
+	cmp bl, p2
+	jg Player1Score	
+	jmp GameLoop2
+RightPaddleDown:
+	mov bl, Bvp	
+	cmp bl, p2
+	jg Player1Score	
+	inc bl
+	mov cl, p2
+	sub cl, 5	
+	cmp bl, cl
+	jl Player1Score	
+	jmp GameLoop2	
+
+Player1Score:
+	inc P1Score
+	cmp p1Score, 5
+	je Player1Wins
+	jmp Start
+
+Player2Score:
+	inc P2Score
+	cmp p2Score, 5
+	je Player2Wins 
+	jmp Start
+
+Player1Wins:
+	call  ClearScreen
+	mov dh, 10	;row and column are part of the write string interrupt no need to call setcursor
+	mov dl, 13
+	mov bl, 42h	;Player1 colors
+	mov cx, 13	;numbert of characters in string
+	mov ax, @data
+	mov es, ax
+	mov bp, OFFSET P1Wins
+	mov ax, 1301h	;ah=13h and al=1
+	int 10h
+	mov dh, 12
+	mov dl, 13
+	mov ax, @data
+	mov es, ax
+	mov bp, OFFSET PlayAgain
+	mov cx, 17
+	mov bl, 24h
+	mov ax, 1301h
+	int 10h
+	mov ah, 01h
+YesOrNo1:	
+	int 21h
+	cmp al, "y"
+	je Restart
+	cmp al, "n"
+	je Escape
+	jmp yesorno1
+	
+	
+Player2Wins:
+	call  ClearScreen
+	mov dh, 10	;row and column are part of the write string interrupt no need to call setcursor
+	mov dl, 13
+	mov bl, 24h	;Player2 colors
+	mov cx, 13	;numbert of characters in string
+	mov ax, @data
+	mov es, ax
+	mov bp, OFFSET P2Wins
+	mov ax, 1301h	;ah=13h and al=1
+	int 10h
+	mov dh, 12
+	mov dl, 13
+	mov bl, 42h
+	mov ax, @data
+	mov es, ax
+	mov bp, OFFSET PlayAgain
+	mov cx, 17
+	mov ax, 1301h
+	int 10h
+	mov ah, 01h
+YesOrNo2:		;in case neither y or n is pressed (especially by case of accident for button mashing)
+	int 21h
+	cmp al, "y"
+	je Restart
+	cmp al, "n"
+	je Escape
+	jmp yesorno2
+
+GameLoop2:		
+	xor cx, cx	;0
+	xor dx, dx
+	mov ah, 2Dh	;sets the time at all zeroes	
+	int 21h	
+	mov ah, 2Ch	;reads the time
+WaitLoop:	
+	int 21h		;gets the system time (1/100 seconds are stored in dl)
+	cmp dl, 10	;could lower this to increase movement speed (10 may be a little slow)
+	jge MovementCheck
+	jmp WaitLoop
+	
+MovementCheck:
+	mov cl, [Speed]
+	ror check, cl	;could change this to easily double or half the speed of the ball without changing anything else	
+	cmp check, 0Fh	;should equal 0Fh on every other (or every or fourth or eighth ) pass (about 20 centiseconds)
+	je BallMovement
+
+Commands:	
+	mov dl, 0FFh	;needed for int 21h
+	mov ah, 06h
+	int 21h		;doesnt wait, gets letter from buffer
+	cmp al, "q"
+	je Paddle1Up
+	cmp al, "w"
+	je Paddle1Upfast
+	cmp al, "a"
+	je Paddle1Down
+	cmp al, "s"
+	je Paddle1Downfast
+	cmp al, "o"
+	je Paddle2Up
+	cmp al, "i"
+	je Paddle2Upfast
+	cmp al, "l"
+	je Paddle2Down
+	cmp al, "k"
+	je Paddle2Downfast
+	cmp al, "0"	;0 is used as a quit button
+	je Escape
+	cmp al, "1"
+	je ExtremelySlowMode
+	cmp al, "2"
+	je SlowMode
+	cmp al, "3"
+	je DefaultMode
+	cmp al, "4"
+	je FastMode
+	jmp GameLoop
+ 
+ExtremelySlowMode:
+	mov Speed, 1
+	jmp GameLoop2
+
+SlowMode:
+	mov Speed, 2
+	mov Check, 0Fh		;needs to be reset every time when switching speeds unless moving to slowest
+	jmp GameLoop2	
+
+DefaultMode:
+	mov Speed, 4
+	mov Check, 0Fh
+	jmp GameLoop2
+
+FastMode:
+	mov Speed, 8
+	mov Check, 0Fh
+	jmp GameLoop2
+
+	
+
+
+Escape:			;gets an error message sometimes, I am not sure why
+	mov ah, 4Ch
+	int 21h
+
+main endp
+
+ClearScreen PROC
+	;requires none
+	;returns a blank screen
+
+	mov ax, 0B800h	;start of memory map
+	mov es, ax	
+	xor si, si	;start at offset 0
+	mov ax, 0h	;ah=00h and al =01h
+	int 10h
+	mov cx, 2000
+Clear:
+	inc si 
+	mov byte ptr es:[si], 0	;puts an empty space in each position
+	loop Clear
+	ret
+ClearScreen endP
+	
+	
+SetCursor PROC
+	;requires DH = row DL = column.
+	;returns cursor to desired position
+	
+	pushA	;conserves regs
+	mov ax, 0200h
+	mov bh, 0
+	int 10h
+	popA
+	ret
+SetCursor endP
+
+
+WriteText PROC
+	;requires AL= Ascii code for desired text
+	;Bl= color(background), color(character)
+	;returns character
+	
+	pushA
+	mov cx, 1
+	mov bh, 0
+	mov ah, 09h
+	int 10h
+	popA
+	ret
+WriteText endP
+	
+	
+	
+END main
+
+	
